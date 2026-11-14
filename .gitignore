@@ -1,0 +1,12 @@
+.gradle/
+.idea/
+local.properties
+**/build/
+*.jks
+*.keystore
+
+*.log
+hs_err_pid*
+artifacts/
+
+.test-avd/
