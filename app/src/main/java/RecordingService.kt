@@ -126,7 +126,7 @@ class RecordingService : Service() {
             }
         } catch (_: Exception) { failure = R.string.record_error }
         running = false
-        withContext(Dispatchers.Main) { state.update { it.copy(active = false, saving = true, level = 0f) }; cleanup(); notification(); vibrate() }
+        withContext(Dispatchers.Main) { state.update { it.copy(active = false, saving = true, level = 0f) }; cleanup(releaseWakeLock = false); notification(); vibrate() }
         try {
             if (part.length() > 44) {
                 Pcm.repair(part)
@@ -143,17 +143,22 @@ class RecordingService : Service() {
                 if (Repository.library.value.recordings.none { it.id == id }) Repository.add(Recording(id, getString(R.string.recording) + " " + java.text.SimpleDateFormat("yyyy-MM-dd HH.mm.ss", java.util.Locale.US).format(java.util.Date(created)), target.name, created, duration, marks = state.value.marks, peaks = peaks))
             } else { part.delete(); failure = R.string.record_error }
         } catch (_: Exception) { failure = R.string.save_error }
-        withContext(Dispatchers.Main) { state.value = CaptureState(); if (failure != null) Repository.error.value = failure; stopForeground(STOP_FOREGROUND_REMOVE); stopSelf() }
+        withContext(Dispatchers.Main) { releaseWake(); state.value = CaptureState(); if (failure != null) Repository.error.value = failure; stopForeground(STOP_FOREGROUND_REMOVE); stopSelf() }
     }
-    private fun cleanup() {
+    private fun cleanup(releaseWakeLock: Boolean = true) {
         running = false
         runCatching { record?.stop() }; record?.release(); record = null
         runCatching { audio.unregisterAudioRecordingCallback(callback) }
         focus?.let { audio.abandonAudioFocusRequest(it) }; focus = null
+        if (releaseWakeLock) releaseWake()
+    }
+    private fun releaseWake() {
         if (wake?.isHeld == true) wake?.release(); wake = null
     }
     override fun onDestroy() { running = false; if (!state.value.saving && state.value.active) state.update { it.copy(active = false, saving = true) }; super.onDestroy() }
 }
+
+
 
 
 

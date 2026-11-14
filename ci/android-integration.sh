@@ -19,6 +19,9 @@ collect_diagnostics() {
 # Verify basic recording, codecs, playback and UI before the long endurance test.
 run_tests -Pandroid.testInstrumentationRunnerArguments.longRecording=false || result=$?
 collect_diagnostics short
+if [ "$result" -eq 0 ]; then
+  python3 ci/device-checks.py || result=$?
+fi
 if [ "$result" -eq 0 ] && [ "${1:-false}" = true ]; then
   run_tests -Pandroid.testInstrumentationRunnerArguments.longRecording=true '-Pandroid.testInstrumentationRunnerArguments.class=com.phocorin.easyaudio.AudioIntegrationTest#backgroundAndLockedRecordingForTenMinutes' || result=$?
   collect_diagnostics long

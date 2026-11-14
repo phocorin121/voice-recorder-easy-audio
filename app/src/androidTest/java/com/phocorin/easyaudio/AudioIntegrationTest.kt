@@ -94,4 +94,26 @@ class AudioIntegrationTest {
         instrumentation.uiAutomation.executeShellCommand("input keyevent KEYCODE_WAKEUP").close()
         instrumentation.uiAutomation.executeShellCommand("wm dismiss-keyguard").close()
     }
+    @Test fun encodesTenMinutesWithoutPollingStall() {
+        val id = Repository.id()
+        val wav = File(context.cacheDir, "$id.wav")
+        val m4a = File(context.cacheDir, "$id.m4a")
+        try {
+            val oneSecond = ByteArray(Pcm.RATE * 2)
+            for (i in 0 until Pcm.RATE) {
+                val v = (sin(i.toDouble() * 440 * 2 * Math.PI / Pcm.RATE) * 9000).toInt()
+                oneSecond[i * 2] = v.toByte(); oneSecond[i * 2 + 1] = (v shr 8).toByte()
+            }
+            wav.outputStream().use { out -> out.write(Pcm.header(Pcm.RATE * 2L * 600)); repeat(600) { out.write(oneSecond) } }
+            val start = SystemClock.elapsedRealtime()
+            AudioCodec.encode(wav, m4a, 96000)
+            val elapsed = SystemClock.elapsedRealtime() - start
+            android.util.Log.i("EasyAudioTest", "AAC_ENCODE_600S_MS=$elapsed")
+            assertTrue("Encoding must not accumulate polling delays: $elapsed ms", elapsed < 90000)
+            val metadata = android.media.MediaMetadataRetriever()
+            try { metadata.setDataSource(m4a.path); assertTrue(metadata.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_DURATION)!!.toLong() >= 599000) }
+            finally { metadata.release() }
+        } finally { wav.delete(); m4a.delete() }
+    }
 }
+

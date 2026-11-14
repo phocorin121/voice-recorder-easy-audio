@@ -20,30 +20,50 @@ object AudioCodec {
             FileInputStream(wav).use { input ->
                 check(input.skip(44) == 44L)
                 val bytes = ByteArray(8192)
+                var lastProgress = android.os.SystemClock.elapsedRealtime()
                 while (!done) {
+                    var progressed = false
                     if (!eos) {
-                        val index = codec.dequeueInputBuffer(10000)
+                        val index = codec.dequeueInputBuffer(0)
                         if (index >= 0) {
                             val buffer = codec.getInputBuffer(index)!!; buffer.clear()
                             val n = input.read(bytes, 0, minOf(bytes.size, buffer.remaining()))
                             val time = total / 2 * 1000000 / Pcm.RATE
                             if (n < 0) { codec.queueInputBuffer(index, 0, 0, time, MediaCodec.BUFFER_FLAG_END_OF_STREAM); eos = true }
                             else { buffer.put(bytes, 0, n); codec.queueInputBuffer(index, 0, n, time, 0); total += n }
+                            progressed = true
                         }
                     }
-                    val index = codec.dequeueOutputBuffer(info, 10000)
-                    if (index == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) { track = muxer.addTrack(codec.outputFormat); muxer.start(); started = true }
-                    else if (index >= 0) {
-                        if (info.size > 0 && info.flags and MediaCodec.BUFFER_FLAG_CODEC_CONFIG == 0) {
-                            check(started); val buffer = codec.getOutputBuffer(index)!!; buffer.position(info.offset); buffer.limit(info.offset + info.size); muxer.writeSampleData(track, buffer, info)
+                    // Drain every available frame before requesting more input. One PCM
+                    // input buffer produces several AAC packets; blocking once per packet
+                    // otherwise adds minutes of avoidable polling to a long recording.
+                    while (!done) {
+                        val index = codec.dequeueOutputBuffer(info, 0)
+                        if (index == MediaCodec.INFO_TRY_AGAIN_LATER) break
+                        progressed = true
+                        if (index == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
+                            track = muxer.addTrack(codec.outputFormat); muxer.start(); started = true
+                        } else if (index >= 0) {
+                            if (info.size > 0 && info.flags and MediaCodec.BUFFER_FLAG_CODEC_CONFIG == 0) {
+                                check(started)
+                                val buffer = codec.getOutputBuffer(index)!!
+                                buffer.position(info.offset); buffer.limit(info.offset + info.size)
+                                muxer.writeSampleData(track, buffer, info)
+                            }
+                            done = info.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0
+                            codec.releaseOutputBuffer(index, false)
                         }
-                        done = info.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0
-                        codec.releaseOutputBuffer(index, false)
+                    }
+                    if (progressed) lastProgress = android.os.SystemClock.elapsedRealtime()
+                    else {
+                        check(android.os.SystemClock.elapsedRealtime() - lastProgress < 30000) { "AAC encoder stalled" }
+                        Thread.sleep(1)
                     }
                 }
             }
             muxer.stop()
         } finally { codec.release(); muxer?.release() }
+        RandomAccessFile(output, "rw").use { it.fd.sync() }
     }
     fun decode(source: File, wav: File) {
         val extractor = MediaExtractor(); var codec: MediaCodec? = null
@@ -101,4 +121,6 @@ object AudioCodec {
         } finally { decoded.delete(); cut.delete() }
     }
 }
+
+
 
