@@ -1,6 +1,7 @@
 name: Android integration tests
 on:
   pull_request:
+    paths-ignore: ['**/*.md']
   workflow_dispatch:
     inputs:
       longRecording:
@@ -8,6 +9,9 @@ on:
         required: true
         type: boolean
         default: false
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 permissions:
   contents: read
 jobs:
@@ -34,12 +38,14 @@ jobs:
           arch: x86_64
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -no-audio -no-boot-anim -camera-back none
-          script: ./gradlew --no-daemon connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.longRecording=${{ github.event_name == 'pull_request' || inputs.longRecording }}
+          script: bash ci/android-integration.sh ${{ github.event_name == 'pull_request' || inputs.longRecording }}
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: android-integration-reports
           path: |
+            app/build/reports/device/
             app/build/reports/androidTests/
             app/build/outputs/androidTest-results/
+
 
