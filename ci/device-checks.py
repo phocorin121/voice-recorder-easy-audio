@@ -35,7 +35,7 @@ def wait_for(predicate, seconds=30):
     while time.monotonic() < deadline:
         try:
             value = predicate()
-            if value:
+            if isinstance(value, ET.Element) or value:
                 return value
         except (RuntimeError, ValueError, ET.ParseError):
             pass
@@ -242,6 +242,30 @@ try:
     wait_for(lambda: any(re.search(r"00:00:0[12] / 00:00:02", n.get("text", "")) for n in ui()))
     click_desc("Share"); sharesheet()
     record_result("offline_playback_and_single_file_share_menu")
+
+    # Kill capture without a Stop action, then verify journal recovery and no restart.
+    launch(record=True)
+    def pending_capture():
+        filenames = adb("shell", "run-as", APP, "ls", "files/recordings").decode().split()
+        for filename in filenames:
+            if filename.endswith(".wav.part"):
+                data = adb("exec-out", "run-as", APP, "cat", "files/recordings/" + filename)
+                if len(data) >= 44 + 44100 * 2 * 2:
+                    return filename
+        return None
+    pending = wait_for(pending_capture)
+    recovered_file = pending.removesuffix(".part")
+    adb("shell", "am", "force-stop", APP)
+    launch()
+    wait_for(lambda: any(r["file"] == recovered_file for r in library()["recordings"]))
+    recovered = adb("exec-out", "run-as", APP, "cat", "files/recordings/" + recovered_file)
+    with wave.open(io.BytesIO(recovered), "rb") as recovered_audio:
+        assert recovered_audio.getnframes() >= 44100
+        assert recovered_audio.getframerate() == 44100
+    assert struct.unpack_from("<I", recovered, 40)[0] == len(recovered) - 44
+    assert b".RecordingService" not in adb("shell", "dumpsys", "activity", "services", APP)
+    snapshot("recovered-recording")
+    record_result("process_kill_recovers_audio_without_hidden_recording_restart")
 except BaseException as failure:
     results["failure"] = str(failure)
     (OUT / "results.json").write_text(json.dumps(results, indent=2), encoding="utf-8")
