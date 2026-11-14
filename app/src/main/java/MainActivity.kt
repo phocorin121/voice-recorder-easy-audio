@@ -8,7 +8,7 @@ import android.content.pm.ShortcutManager
 import android.graphics.drawable.Icon
 import android.os.Build
 import android.os.Bundle
-import androidx.activity.compose.setContent
+
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
@@ -63,7 +63,9 @@ class MainActivity : AppCompatActivity() {
         consent.requestConsentInfoUpdate(this, ConsentRequestParameters.Builder().build(), {
             UserMessagingPlatform.loadAndShowConsentFormIfRequired(this) { if (consent.canRequestAds()) MobileAds.initialize(this) { runOnUiThread { adsReady = true } } }
         }, { /* Offline or failed consent: recording works, ads stay disabled. */ })
-        setContent { EasyAudio() }
+        val composeView = androidx.compose.ui.platform.ComposeView(this)
+        setContentView(composeView)
+        composeView.setContent { EasyAudio() }
     }
     override fun onNewIntent(intent: Intent) { super.onNewIntent(intent); if (intent.action == "com.phocorin.easyaudio.RECORD") requestRecording() }
     private fun requestRecording() {
@@ -377,6 +379,7 @@ private fun play(player: Player, r: Recording, start: Long = 0, end: Long? = nul
         }
     }
 }
+
 
 
 
