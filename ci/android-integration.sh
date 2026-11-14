@@ -7,7 +7,7 @@ run_tests() {
 collect_diagnostics() {
   local target="app/build/reports/device/$1"
   mkdir -p "$target"
-  adb exec-out run-as com.phocorin.easyaudio tar -C files -cf - test-screenshots > "$target/screenshots.tar" || true
+  adb pull /sdcard/Pictures/EasyAudioTests "$target/screenshots" || true
   adb logcat -d -s AndroidRuntime:E > "$target/android-runtime.txt" || true
   if [ -d app/build/outputs/androidTest-results ]; then
     cp -R app/build/outputs/androidTest-results "$target/"

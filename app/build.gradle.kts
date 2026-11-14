@@ -26,6 +26,7 @@ dependencies {
     implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.7")
     implementation("androidx.core:core-ktx:1.15.0")
+    implementation("androidx.fragment:fragment:1.8.5")
     implementation("androidx.media3:media3-exoplayer:1.5.1")
     implementation("androidx.media3:media3-session:1.5.1")
     implementation("com.google.android.gms:play-services-ads:23.6.0")
@@ -33,6 +34,9 @@ dependencies {
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")
     androidTestImplementation("androidx.test:runner:1.6.2")
+    androidTestImplementation(platform("androidx.compose:compose-bom:2024.12.01"))
+    androidTestImplementation("androidx.compose.ui:ui-test-junit4")
 }
 tasks.withType<Test>().configureEach { maxHeapSize = "128m"; jvmArgs("-XX:+UseSerialGC", "-Dfile.encoding=UTF-8") }
+
 
