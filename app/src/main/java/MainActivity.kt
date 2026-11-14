@@ -97,6 +97,12 @@ class MainActivity : ComponentActivity() {
         val prefs = remember { getSharedPreferences("settings", 0) }
         var theme by remember { mutableIntStateOf(prefs.getInt("theme", 0)) }
         val dark = when (theme) { 1 -> false; 2 -> true; else -> isSystemInDarkTheme() }
+        SideEffect {
+            androidx.core.view.WindowCompat.getInsetsController(window, window.decorView).apply {
+                isAppearanceLightStatusBars = !dark
+                isAppearanceLightNavigationBars = !dark
+            }
+        }
         MaterialTheme(colorScheme = if (dark) darkColorScheme(primary = Color(0xFF8DB8FF)) else lightColorScheme(primary = Color(0xFF1764D7), background = Color(0xFFF8FAFD))) {
             val library by Repository.library.collectAsStateWithLifecycle()
             val ready by Repository.ready.collectAsStateWithLifecycle()
@@ -199,8 +205,10 @@ class MainActivity : ComponentActivity() {
         var quality by remember { mutableIntStateOf(prefs.getInt("quality", 0)) }
         var vibration by remember { mutableStateOf(prefs.getBoolean("vibrate", true)) }
         var privacy by remember { mutableStateOf(false) }
-        Column(Modifier.fillMaxSize().safeDrawingPadding().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            PageTitle(R.string.settings, back)
+        Scaffold(topBar = {
+            Column(Modifier.statusBarsPadding().padding(horizontal = 16.dp, vertical = 8.dp)) { PageTitle(R.string.settings, back) }
+        }) { padding ->
+        Column(Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding).verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(stringResource(R.string.quality), style = MaterialTheme.typography.titleMedium)
             listOf(R.string.standard, R.string.high, R.string.lossless).forEachIndexed { i, r -> Row(Modifier.fillMaxWidth().clickable { quality = i; prefs.edit().putInt("quality", i).apply() }, verticalAlignment = Alignment.CenterVertically) { RadioButton(quality == i, { quality = i; prefs.edit().putInt("quality", i).apply() }); Text(stringResource(r)) } }
             Text(stringResource(R.string.quality_help), style = MaterialTheme.typography.bodySmall)
@@ -222,6 +230,7 @@ class MainActivity : ComponentActivity() {
                 if (consent.privacyOptionsRequirementStatus == ConsentInformation.PrivacyOptionsRequirementStatus.REQUIRED) UserMessagingPlatform.showPrivacyOptionsForm(this@MainActivity) { if (it != null) Repository.error.value = R.string.ad_unavailable }
                 else Repository.error.value = R.string.ad_unavailable
             }) { Text(stringResource(R.string.ad_privacy)) }
+        }
         }
         if (privacy) AlertDialog(onDismissRequest = { privacy = false }, title = { Text(stringResource(R.string.privacy)) }, text = { Text(stringResource(R.string.privacy_text)) }, confirmButton = { TextButton(onClick = { privacy = false }) { Text(stringResource(R.string.close)) } })
     }
@@ -382,6 +391,7 @@ private fun play(player: Player, r: Recording, start: Long = 0, end: Long? = nul
         }
     }
 }
+
 
 
 

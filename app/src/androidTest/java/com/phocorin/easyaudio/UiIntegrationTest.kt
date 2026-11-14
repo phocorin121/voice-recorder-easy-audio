@@ -50,12 +50,13 @@ class UiIntegrationTest {
             screenshot("settings-ja")
             compose.onNodeWithText("ダーク").performScrollTo().performClick()
             screenshot("settings-ja-dark")
-            instrumentation.uiAutomation.executeShellCommand("settings put system accelerometer_rotation 0").close()
-            instrumentation.uiAutomation.executeShellCommand("settings put system user_rotation 1").close()
+            compose.activityRule.scenario.onActivity { it.requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE }
+            compose.waitUntil(15000) { compose.activity.resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE }
             compose.waitForIdle()
             awaitText("録音品質")
             screenshot("settings-ja-landscape")
-            instrumentation.uiAutomation.executeShellCommand("settings put system user_rotation 0").close()
+            compose.activityRule.scenario.onActivity { it.requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT }
+            compose.waitUntil(15000) { compose.activity.resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_PORTRAIT }
             compose.onNodeWithText("ライト").performScrollTo().performClick()
             compose.onNodeWithText("English").performScrollTo().performClick()
             awaitText("Recording quality")
@@ -68,3 +69,4 @@ class UiIntegrationTest {
         }
     }
 }
+
