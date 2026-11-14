@@ -25,7 +25,6 @@ dependencies {
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.7")
-    implementation("androidx.appcompat:appcompat:1.7.0")
     implementation("androidx.core:core-ktx:1.15.0")
     implementation("androidx.media3:media3-exoplayer:1.5.1")
     implementation("androidx.media3:media3-session:1.5.1")
@@ -36,3 +35,4 @@ dependencies {
     androidTestImplementation("androidx.test:runner:1.6.2")
 }
 tasks.withType<Test>().configureEach { maxHeapSize = "128m"; jvmArgs("-XX:+UseSerialGC", "-Dfile.encoding=UTF-8") }
+

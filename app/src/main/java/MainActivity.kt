@@ -10,8 +10,8 @@ import android.os.Build
 import android.os.Bundle
 
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.appcompat.app.AppCompatActivity
-import androidx.appcompat.app.AppCompatDelegate
+import androidx.activity.ComponentActivity
+
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -34,7 +34,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
-import androidx.core.os.LocaleListCompat
+
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.media3.common.*
 import androidx.media3.session.*
@@ -45,7 +45,7 @@ import java.text.DateFormat
 import java.util.Date
 
 @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
-class MainActivity : AppCompatActivity() {
+class MainActivity : ComponentActivity() {
     private var controller by mutableStateOf<MediaController?>(null)
     private var adsReady by mutableStateOf(false)
     private var shortcutStart = false
@@ -53,9 +53,14 @@ class MainActivity : AppCompatActivity() {
         if (granted) beginRecording() else Repository.error.value = R.string.permission_needed
     }
     private val notifications = registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
+    override fun attachBaseContext(newBase: Context) { super.attachBaseContext(newBase.withAppLanguage()) }
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         shortcutStart = savedInstanceState == null && intent.action == "com.phocorin.easyaudio.RECORD"
+        val composeView = androidx.compose.ui.platform.ComposeView(this)
+        setContentView(composeView)
+        composeView.setContent { EasyAudio() }
+
         val future = MediaController.Builder(this, SessionToken(this, ComponentName(this, PlaybackService::class.java))).buildAsync()
         future.addListener({ runCatching { controller = future.get() }.onFailure { Repository.error.value = R.string.play_error } }, ContextCompat.getMainExecutor(this))
         lifecycle.addObserver(object : androidx.lifecycle.DefaultLifecycleObserver { override fun onDestroy(owner: androidx.lifecycle.LifecycleOwner) { MediaController.releaseFuture(future) } })
@@ -63,9 +68,7 @@ class MainActivity : AppCompatActivity() {
         consent.requestConsentInfoUpdate(this, ConsentRequestParameters.Builder().build(), {
             UserMessagingPlatform.loadAndShowConsentFormIfRequired(this) { if (consent.canRequestAds()) MobileAds.initialize(this) { runOnUiThread { adsReady = true } } }
         }, { /* Offline or failed consent: recording works, ads stay disabled. */ })
-        val composeView = androidx.compose.ui.platform.ComposeView(this)
-        setContentView(composeView)
-        composeView.setContent { EasyAudio() }
+
     }
     override fun onNewIntent(intent: Intent) { super.onNewIntent(intent); if (intent.action == "com.phocorin.easyaudio.RECORD") requestRecording() }
     private fun requestRecording() {
@@ -204,8 +207,8 @@ class MainActivity : AppCompatActivity() {
             ToggleRow(R.string.vibration, vibration) { vibration = it; prefs.edit().putBoolean("vibrate", it).apply() }
             HorizontalDivider()
             Text(stringResource(R.string.language), style = MaterialTheme.typography.titleMedium)
-            val current = AppCompatDelegate.getApplicationLocales().toLanguageTags()
-            listOf("" to R.string.system_language, "en" to R.string.english, "ja" to R.string.japanese).forEach { (code, res) -> Row(Modifier.fillMaxWidth().clickable { AppCompatDelegate.setApplicationLocales(LocaleListCompat.forLanguageTags(code)) }, verticalAlignment = Alignment.CenterVertically) { RadioButton(current == code, { AppCompatDelegate.setApplicationLocales(LocaleListCompat.forLanguageTags(code)) }); Text(stringResource(res)) } }
+            val current = AppLanguage.code(this@MainActivity)
+            listOf("" to R.string.system_language, "en" to R.string.english, "ja" to R.string.japanese).forEach { (code, res) -> Row(Modifier.fillMaxWidth().clickable { AppLanguage.set(this@MainActivity, code) }, verticalAlignment = Alignment.CenterVertically) { RadioButton(current == code, { AppLanguage.set(this@MainActivity, code) }); Text(stringResource(res)) } }
             HorizontalDivider(); Text(stringResource(R.string.theme), style = MaterialTheme.typography.titleMedium)
             listOf(R.string.system_theme, R.string.light, R.string.dark).forEachIndexed { i, res -> Row(Modifier.fillMaxWidth().clickable { setTheme(i) }, verticalAlignment = Alignment.CenterVertically) { RadioButton(theme == i, { setTheme(i) }); Text(stringResource(res)) } }
             OutlinedButton(onClick = {
@@ -379,6 +382,8 @@ private fun play(player: Player, r: Recording, start: Long = 0, end: Long? = nul
         }
     }
 }
+
+
 
 
 

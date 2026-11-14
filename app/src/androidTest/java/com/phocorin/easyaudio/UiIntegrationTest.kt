@@ -4,8 +4,8 @@ import android.content.Intent
 import android.graphics.Bitmap
 import android.os.SystemClock
 import android.view.accessibility.AccessibilityNodeInfo
-import androidx.appcompat.app.AppCompatDelegate
-import androidx.core.os.LocaleListCompat
+
+
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.Assert.*
@@ -49,7 +49,7 @@ class UiIntegrationTest {
     }
     @Test fun settingsLanguageThemeAndRotation() {
         context.startActivity(Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-        instrumentation.runOnMainSync { AppCompatDelegate.setApplicationLocales(LocaleListCompat.forLanguageTags("en")) }
+        instrumentation.runOnMainSync { AppLanguage.set(context, "en") }
         await("Start recording"); screenshot("home-en")
         click("Settings"); await("Recording quality")
         click("日本語"); await("録音品質"); screenshot("settings-ja")
@@ -63,4 +63,5 @@ class UiIntegrationTest {
         screenshot("home-en-final")
     }
 }
+
 
