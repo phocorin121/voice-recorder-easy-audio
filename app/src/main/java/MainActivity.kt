@@ -78,7 +78,8 @@ class MainActivity : ComponentActivity() {
     }
     private fun beginRecording() {
         controller?.stop()
-        runCatching { RecordingService.command(this, RecordingService.START) }.onFailure { Repository.error.value = R.string.record_error }
+        val started = runCatching { RecordingService.command(this, RecordingService.START) }.getOrElse { Repository.error.value = R.string.record_error; false }
+        if (!started) return
         if (Build.VERSION.SDK_INT >= 33 && ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) notifications.launch(Manifest.permission.POST_NOTIFICATIONS)
     }
     private fun share(recordings: List<Recording>) {
@@ -391,6 +392,7 @@ private fun play(player: Player, r: Recording, start: Long = 0, end: Long? = nul
         }
     }
 }
+
 
 
 

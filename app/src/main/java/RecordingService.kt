@@ -21,9 +21,17 @@ class RecordingService : Service() {
     companion object {
         val state = MutableStateFlow(CaptureState())
         const val START = "record"; const val STOP = "stop"; const val PAUSE = "pause"; const val MARK = "mark"
-        fun command(context: Context, action: String) {
+        fun command(context: Context, action: String): Boolean {
+            if (action == START) {
+                if (!Repository.ready.value) { Repository.error.value = R.string.library_error; return false }
+                if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+                    Repository.error.value = R.string.permission_needed; return false
+                }
+                if (Repository.root.usableSpace <= 16 * 1024 * 1024) { Repository.error.value = R.string.storage_error; return false }
+            }
             val intent = Intent(context, RecordingService::class.java).setAction(action)
             if (action == START) ContextCompat.startForegroundService(context, intent) else context.startService(intent)
+            return true
         }
     }
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -81,8 +89,8 @@ class RecordingService : Service() {
     private fun startCapture() {
         if (!Repository.ready.value || ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) { Repository.error.value = R.string.permission_needed; return }
         try {
-            check(Repository.root.usableSpace > 16 * 1024 * 1024)
             state.value = CaptureState(active = true); notification()
+            check(Repository.root.usableSpace > 16 * 1024 * 1024)
             focus = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_EXCLUSIVE)
                 .setAudioAttributes(AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_VOICE_COMMUNICATION).setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build())
                 .setOnAudioFocusChangeListener({ change -> if (change < 0) interrupt() }, handler).build()
@@ -157,6 +165,7 @@ class RecordingService : Service() {
     }
     override fun onDestroy() { running = false; if (!state.value.saving && state.value.active) state.update { it.copy(active = false, saving = true) }; super.onDestroy() }
 }
+
 
 
 
